@@ -1,3 +1,6 @@
+#if they all have the same variance (bc z score, then do you need to estimate unique Rs?)
+#actually you might. think the issue is that you need to group the obs by region
+
 library(tidyverse)
 library(MARSS)
 setwd("/Users/StuartMunsch/Google Drive/NE Salmon Synchrony/")
@@ -66,10 +69,14 @@ ak_1_long <- ak_1 %>% select("year", "region", "chinook", "coho", "chum", "pink"
 ak_1_long %>% group_by(region, species) %>% summarise(sum(na.omit(count) > 0) / length(na.omit(count)))
 ak_out <- ak_1_long %>% filter(count > -1 & region != "West Gulf of Alaska") %>% group_by(year, species, region) %>% summarise(log_mean_count = mean(log(count + 1)))
 all_out_1 <- bind_rows(ps_out, vi_out, ow_out, ak_out)
-all_out <- all_out_1 %>% group_by(region, species) %>% mutate(log_mean_count_z = (log_mean_count - mean(log_mean_count)) / sd(log_mean_count))
+#get rid of odd year pinks from ps and vi because MARSS cannot handle their error terms
+all_out_1[all_out_1$species == "pink" &
+  (all_out_1$region == "Puget Sound" | all_out_1$region == "Vancouver Island") &
+    all_out_1$year %% 2 != 0,]$log_mean_count <- NA
+all_out <- all_out_1 %>% group_by(region, species) %>% mutate(log_mean_count_z = (log_mean_count - mean(na.omit(log_mean_count))) / sd(na.omit(log_mean_count)))
 
 
-ggplot(aes(x = year, y = log_mean_count_z, col = species), data = all_out %>% filter(species == "chinook")) +
+ggplot(aes(x = year, y = log_mean_count_z, col = species), data = all_out) +
   geom_line() + 
   geom_point() +
   facet_wrap(~region) +
@@ -146,7 +153,41 @@ aa <- "zero"
 DD <- "zero"  # matrix(0,mm,1)
 dd <- "zero"  # matrix(0,1,wk_last)
 ## 'RR' is var-cov matrix for obs errors
-RR <- "diagonal and unequal"
+#RR <- "diagonal and unequal"
+
+#grouping by region
+#see above. you need to have a list of values, then you put them in a matrix
+R_vals <- list("ow_v",	"ow_c",	"ow_c",	"ow_c", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, #23 zeros
+                   "ow_c",	"ow_v",	"ow_c",	"ow_c", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, #23 zeros
+                   "ow_c",	"ow_c",	"ow_v",	"ow_c", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, #23 zeros
+                   "ow_c",	"ow_c",	"ow_c",	"ow_v", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, #23 zeros
+                   0, 0, 0, 0, "nbs_v",	"nbs_c",	"nbs_c",	"nbs_c",	"nbs_c", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, #4, 18 zeros
+                   0, 0, 0, 0, "nbs_c",	"nbs_v",	"nbs_c",	"nbs_c",	"nbs_c", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, #4, 18 zeros
+                   0, 0, 0, 0, "nbs_c",	"nbs_c",	"nbs_v",	"nbs_c",	"nbs_c", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, #4, 18 zeros
+                   0, 0, 0, 0, "nbs_c",	"nbs_c",	"nbs_c",	"nbs_v",	"nbs_c", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, #4, 18 zeros
+                   0, 0, 0, 0, "nbs_c",	"nbs_c",	"nbs_c",	"nbs_c",	"nbs_v", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, #4, 18 zeros
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, "ega_v",	"ega_c",	"ega_c",	"ega_c",	"ega_c", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, #9, 13 zeros
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, "ega_c",	"ega_v",	"ega_c",	"ega_c",	"ega_c", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, "ega_c",	"ega_c",	"ega_v",	"ega_c",	"ega_c", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, "ega_c",	"ega_c",	"ega_c",	"ega_v",	"ega_c", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, "ega_c",	"ega_c",	"ega_c",	"ega_c",	"ega_v", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "ps_v",	"ps_c", "ps_c", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, #14, 10
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "ps_c",	"ps_v", "ps_c", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "ps_c",	"ps_c", "ps_v", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "sbs_v",	"sbs_c",	"sbs_c",	"sbs_c",	"sbs_c", 0, 0, 0, 0, 0, #17, 5
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  "sbs_c",	"sbs_v",	"sbs_c",	"sbs_c",	"sbs_c", 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "sbs_c",	"sbs_c",	"sbs_v",	"sbs_c",	"sbs_c", 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "sbs_c",	"sbs_c",	"sbs_c",	"sbs_v",	"sbs_c", 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "sbs_c",	"sbs_c",	"sbs_c",	"sbs_c",	"sbs_v", 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "vi_v",	"vi_c",	"vi_c",	"vi_c",	"vi_c", #22, 0
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "vi_c",	"vi_v",	"vi_c",	"vi_c",	"vi_c",
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "vi_c",	"vi_c",	"vi_v",	"vi_c",	"vi_c",
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "vi_c",	"vi_c",	"vi_c",	"vi_v",	"vi_c",
+                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "vi_c",	"vi_c",	"vi_c",	"vi_c",	"vi_v")
+                  
+RR <- matrix(R_vals, nrow = N_ts, ncol = N_ts, byrow = TRUE)
+
+#zeros need to not have quotes...
 
 ## number of processes
 mm <- 3
@@ -159,6 +200,7 @@ CC <- "zero"  # matrix(0,mm,1)
 cc <- "zero"  # matrix(0,1,wk_last)
 ## 'QQ' is identity
 QQ <- "identity"  # diag(mm)
+#QQ <- r_vcv[, -1] %>% as.matrix()
 
 ## list with specifications for model vectors/matrices
 mod_list <- list(Z = ZZ, A = aa, D = DD, d = dd, R = RR, B = BB, 
@@ -166,8 +208,15 @@ mod_list <- list(Z = ZZ, A = aa, D = DD, d = dd, R = RR, B = BB,
 ## list with model inits
 init_list <- list(x0 = matrix(rep(0, mm), mm, 1))
 ## list with model control parameters
-con_list <- list(maxit = 3000, allow.degen = TRUE)
+con_list <- list(maxit = 10000, allow.degen = TRUE)
 
 ## fit MARSS
 dfa_1 <- MARSS(y = dat_salmon, model = mod_list, inits = init_list, 
                control = con_list)
+
+isSymmetric.matrix(RR)
+#next steps are going to be to think about covariance matrix for fish from the same regions  
+
+diag(c("a"))
+
+isSymmetric.matrix(matrix(c("a","c","c","b"), 2 ,2))
