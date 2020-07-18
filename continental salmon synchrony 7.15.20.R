@@ -82,6 +82,18 @@ ggplot(aes(x = year, y = log_mean_count_z, col = species), data = all_out) +
   facet_wrap(~region) +
   geom_vline(aes(xintercept = 2014)) +
   geom_vline(aes(xintercept = 2015))
+ggsave("salmon synchrony raw.jpeg", width = 10, height = 4)
+
+all_out2 <- all_out
+all_out2$species_region <- paste(all_out2$species, all_out2$region, sep = "_")
+
+ggplot(aes(x = year, y = log_mean_count_z), data = all_out2) +
+  #geom_line() + 
+  #geom_point() +
+  geom_vline(aes(xintercept = 2014)) +
+  geom_vline(aes(xintercept = 2015)) +
+  geom_smooth(fill = NA, aes(group = species_region, col = region)) +
+  coord_cartesian(ylim = c(-2, 2.2))
 
 #fit DFA to salmon data =======================================================
 #fit DFA to salmon data =======================================================
@@ -108,8 +120,14 @@ all_out_wide_1 <- left_join(nbs_out_wide %>% ungroup() %>% select(-"region"), eg
 all_out_wide_2 <- left_join(ow_out_wide %>% ungroup() %>% select(-"region") %>% ungroup(), all_out_wide_1)
 all_out_wide_3 <- left_join(all_out_wide_2, ps_out_wide %>% ungroup() %>% select(-"region") %>% ungroup())
 all_out_wide_4 <- left_join(all_out_wide_3, sbs_out_wide %>% ungroup() %>% select(-"region") %>% ungroup())
-all_out_wide <- left_join(all_out_wide_4, vi_out_wide %>% ungroup() %>% select(-"region") %>% ungroup())
-
+all_out_wide_5 <- left_join(all_out_wide_4, vi_out_wide %>% ungroup() %>% select(-"region") %>% ungroup())
+all_out_wide <- all_out_wide_5[,c("year",
+                                  "chinook_nbs", "chum_nbs", "coho_nbs", "pink_nbs", "sockeye_nbs",
+                                  "chinook_sbs", "chum_sbs", "coho_sbs", "pink_sbs", "sockeye_sbs",
+                                  "chinook_ega", "chum_ega", "coho_ega", "pink_ega", "sockeye_ega",
+                                  "chinook_vi", "chum_vi", "coho_vi", "pink_vi", "sockeye_vi",
+                                  "chinook_ps", "chum_ps", "pink_ps",
+                                  "chinook_ow", "chum_ow", "coho_ow", "sockeye_ow")]
 ## transpose data so time goes across columns
 dat_salmon <- t(all_out_wide %>% select(-"year"))
 ## get number of time series
@@ -147,6 +165,65 @@ Z_vals <- list("z1.1", 0, 0,
                "z27.1", "z27.2", "z27.3")
 ZZ <- matrix(Z_vals, nrow = N_ts, ncol = 3, byrow = TRUE)
 
+Z_vals <- list("z1.1", 0, 
+               "z2.1", "z2.2", 
+               "z3.1", "z3.2", 
+               "z4.1", "z4.2", 
+               "z5.1", "z5.2", 
+               "z6.1", "z6.2", 
+               "z7.1", "z7.2", 
+               "z8.1", "z8.2", 
+               "z9.1", "z9.2", 
+               "z10.1", "z10.2", 
+               "z11.1", "z11.2", 
+               "z12.1", "z12.2", 
+               "z13.1", "z13.2", 
+               "z14.1", "z14.2", 
+               "z15.1", "z15.2",
+               "z16.1", "z16.2", 
+               "z17.1", "z17.2", 
+               "z18.1", "z18.2", 
+               "z19.1", "z19.2", 
+               "z20.1", "z20.2", 
+               "z21.1", "z21.2", 
+               "z22.1", "z22.2", 
+               "z23.1", "z23.2", 
+               "z24.1", "z24.2", 
+               "z25.1", "z25.2", 
+               "z26.1", "z26.2", 
+               "z27.1", "z27.2")
+ZZ <- matrix(Z_vals, nrow = N_ts, ncol = 2, byrow = TRUE)
+
+
+Z_vals <- list(0,  
+               "z2.1",  
+               "z3.1",  
+               "z4.1",  
+               "z5.1", 
+               "z6.1", 
+               "z7.1", 
+               "z8.1",  
+               "z9.1",  
+               "z10.1",
+               "z11.1", 
+               "z12.1", 
+               "z13.1", 
+               "z14.1",
+               "z15.1",
+               "z16.1",  
+               "z17.1", 
+               "z18.1",
+               "z19.1", 
+               "z20.1", 
+               "z21.1",  
+               "z22.1", 
+               "z23.1", 
+               "z24.1", 
+               "z25.1", 
+               "z26.1",
+               "z27.1")
+ZZ <- matrix(Z_vals, nrow = N_ts, ncol = 1, byrow = TRUE)
+
 ## 'aa' is the offset/scaling
 aa <- "zero"
 ## 'DD' and 'd' are for covariates
@@ -156,41 +233,41 @@ dd <- "zero"  # matrix(0,1,wk_last)
 #RR <- "diagonal and unequal"
 
 #grouping by region
-#see above. you need to have a list of values, then you put them in a matrix
-R_vals <- list("ow_v",	"ow_c",	"ow_c",	"ow_c", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, #23 zeros
-                   "ow_c",	"ow_v",	"ow_c",	"ow_c", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, #23 zeros
-                   "ow_c",	"ow_c",	"ow_v",	"ow_c", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, #23 zeros
-                   "ow_c",	"ow_c",	"ow_c",	"ow_v", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, #23 zeros
-                   0, 0, 0, 0, "nbs_v",	"nbs_c",	"nbs_c",	"nbs_c",	"nbs_c", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, #4, 18 zeros
-                   0, 0, 0, 0, "nbs_c",	"nbs_v",	"nbs_c",	"nbs_c",	"nbs_c", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, #4, 18 zeros
-                   0, 0, 0, 0, "nbs_c",	"nbs_c",	"nbs_v",	"nbs_c",	"nbs_c", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, #4, 18 zeros
-                   0, 0, 0, 0, "nbs_c",	"nbs_c",	"nbs_c",	"nbs_v",	"nbs_c", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, #4, 18 zeros
-                   0, 0, 0, 0, "nbs_c",	"nbs_c",	"nbs_c",	"nbs_c",	"nbs_v", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, #4, 18 zeros
-                   0, 0, 0, 0, 0, 0, 0, 0, 0, "ega_v",	"ega_c",	"ega_c",	"ega_c",	"ega_c", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, #9, 13 zeros
-                   0, 0, 0, 0, 0, 0, 0, 0, 0, "ega_c",	"ega_v",	"ega_c",	"ega_c",	"ega_c", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                   0, 0, 0, 0, 0, 0, 0, 0, 0, "ega_c",	"ega_c",	"ega_v",	"ega_c",	"ega_c", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                   0, 0, 0, 0, 0, 0, 0, 0, 0, "ega_c",	"ega_c",	"ega_c",	"ega_v",	"ega_c", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                   0, 0, 0, 0, 0, 0, 0, 0, 0, "ega_c",	"ega_c",	"ega_c",	"ega_c",	"ega_v", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "ps_v",	"ps_c", "ps_c", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, #14, 10
-                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "ps_c",	"ps_v", "ps_c", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "ps_c",	"ps_c", "ps_v", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "sbs_v",	"sbs_c",	"sbs_c",	"sbs_c",	"sbs_c", 0, 0, 0, 0, 0, #17, 5
-                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  "sbs_c",	"sbs_v",	"sbs_c",	"sbs_c",	"sbs_c", 0, 0, 0, 0, 0,
-                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "sbs_c",	"sbs_c",	"sbs_v",	"sbs_c",	"sbs_c", 0, 0, 0, 0, 0,
-                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "sbs_c",	"sbs_c",	"sbs_c",	"sbs_v",	"sbs_c", 0, 0, 0, 0, 0,
-                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "sbs_c",	"sbs_c",	"sbs_c",	"sbs_c",	"sbs_v", 0, 0, 0, 0, 0,
-                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "vi_v",	"vi_c",	"vi_c",	"vi_c",	"vi_c", #22, 0
-                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "vi_c",	"vi_v",	"vi_c",	"vi_c",	"vi_c",
-                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "vi_c",	"vi_c",	"vi_v",	"vi_c",	"vi_c",
-                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "vi_c",	"vi_c",	"vi_c",	"vi_v",	"vi_c",
-                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "vi_c",	"vi_c",	"vi_c",	"vi_c",	"vi_v")
+
+R_vals <- list("nbs_v",	"nbs_c",	"nbs_c",	"nbs_c",	"nbs_c",	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,
+               "nbs_c",	"nbs_v",	"nbs_c",	"nbs_c",	"nbs_c",	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,
+               "nbs_c",	"nbs_c",	"nbs_v",	"nbs_c",	"nbs_c",	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,
+               "nbs_c",	"nbs_c",	"nbs_c",	"nbs_v",	"nbs_c",	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,
+               "nbs_c",	"nbs_c",	"nbs_c",	"nbs_c",	"nbs_v",	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,
+               0,	0,	0,	0,	0,	"sbs_v",	"sbs_c",	"sbs_c",	"sbs_c",	"sbs_c",	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,
+               0,	0,	0,	0,	0,	"sbs_c",	"sbs_v",	"sbs_c",	"sbs_c",	"sbs_c",	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,
+               0,	0,	0,	0,	0,	"sbs_c",	"sbs_c",	"sbs_v",	"sbs_c",	"sbs_c",	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,
+               0,	0,	0,	0,	0,	"sbs_c",	"sbs_c",	"sbs_c",	"sbs_v",	"sbs_c",	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,
+               0,	0,	0,	0,	0,	"sbs_c",	"sbs_c",	"sbs_c",	"sbs_c",	"sbs_v",	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,
+               0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	"ega_v",	"ega_c",	"ega_c",	"ega_c",	"ega_c",	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,
+               0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	"ega_c",	"ega_v",	"ega_c",	"ega_c",	"ega_c",	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,
+               0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	"ega_c",	"ega_c",	"ega_v",	"ega_c",	"ega_c",	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,
+               0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	"ega_c",	"ega_c",	"ega_c",	"ega_v",	"ega_c",	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,
+               0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	"ega_c",	"ega_c",	"ega_c",	"ega_c",	"ega_v",	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,
+               0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	"vi_v",	"vi_c",	"vi_c",	"vi_c",	"vi_c",	0,	0,	0,	0,	0,	0,	0,
+               0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	"vi_c",	"vi_v",	"vi_c",	"vi_c",	"vi_c",	0,	0,	0,	0,	0,	0,	0,
+               0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	"vi_c",	"vi_c",	"vi_v",	"vi_c",	"vi_c",	0,	0,	0,	0,	0,	0,	0,
+               0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	"vi_c",	"vi_c",	"vi_c",	"vi_v",	"vi_c",	0,	0,	0,	0,	0,	0,	0,
+               0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	"vi_c",	"vi_c",	"vi_c",	"vi_c",	"vi_v",	0,	0,	0,	0,	0,	0,	0,
+               0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	"ps_v",	"ps_c",	"ps_c",	0,	0,	0,	0,
+               0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	"ps_c",	"ps_v",	"ps_c",	0,	0,	0,	0,
+               0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	"ps_c",	"ps_c",	"ps_v",	0,	0,	0,	0,
+               0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	"ow_v",	"ow_c",	"ow_c",	"ow_c",
+               0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	"ow_c",	"ow_v",	"ow_c",	"ow_c",
+               0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	"ow_c",	"ow_c",	"ow_v",	"ow_c",
+               0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	"ow_c",	"ow_c",	"ow_c",	"ow_v")
+
                   
 RR <- matrix(R_vals, nrow = N_ts, ncol = N_ts, byrow = TRUE)
 
-#zeros need to not have quotes...
 
 ## number of processes
-mm <- 3
+mm <- 1
 ## 'BB' is identity: 1's along the diagonal & 0's elsewhere
 BB <- "identity"  # diag(mm)
 ## 'uu' is a column vector of 0's
@@ -199,8 +276,17 @@ uu <- "zero"  # matrix(0,mm,1)
 CC <- "zero"  # matrix(0,mm,1)
 cc <- "zero"  # matrix(0,1,wk_last)
 ## 'QQ' is identity
-QQ <- "identity"  # diag(mm)
-#QQ <- r_vcv[, -1] %>% as.matrix()
+#QQ <- "identity"  # diag(mm)
+#QQ <- matrix(list("q1", 0, 0, 
+#             0, "q2", 0,
+#             0, 0, "q3"), 
+#             nrow = 3)
+
+#QQ <- matrix(list("q1", 0, 
+#                  0, "q2"), 
+#             nrow = 2)
+
+QQ <- matrix("q1")
 
 ## list with specifications for model vectors/matrices
 mod_list <- list(Z = ZZ, A = aa, D = DD, d = dd, R = RR, B = BB, 
@@ -211,12 +297,81 @@ init_list <- list(x0 = matrix(rep(0, mm), mm, 1))
 con_list <- list(maxit = 10000, allow.degen = TRUE)
 
 ## fit MARSS
-dfa_1 <- MARSS(y = dat_salmon, model = mod_list, inits = init_list, 
+dfa_3 <- MARSS(y = dat_salmon, model = mod_list, inits = init_list, 
                control = con_list)
 
-isSymmetric.matrix(RR)
-#next steps are going to be to think about covariance matrix for fish from the same regions  
+dfa_1$AICc #3 trends 
+dfa_2$AICc #2 trends
+dfa_3$AICc #1 trends = fits best
 
-diag(c("a"))
+## get the estimated ZZ
+Z_est <- coef(dfa_2, type = "matrix")$Z
+## get the inverse of the rotation matrix
+H_inv <- varimax(Z_est)$rotmat
 
-isSymmetric.matrix(matrix(c("a","c","c","b"), 2 ,2))
+## rotate factor loadings
+Z_rot = Z_est %*% H_inv
+## rotate processes
+#proc_rot = solve(H_inv) %*% dfa_2$states
+proc_rot = dfa_3$states
+
+mm <- 1
+
+yr_frst <- 1998
+ylbl <- rownames(dat_salmon)
+w_ts <- seq(dim(dat_salmon)[2])
+layout(matrix(c(1, 2, 3, 4, 5, 6), mm, 2), widths = c(2, 1))
+## par(mfcol=c(mm,2), mai=c(0.5,0.5,0.5,0.1), omi=c(0,0,0,0))
+par(mai = c(0.5, 0.5, 0.5, 0.1), omi = c(0, 0, 0, 0))
+## plot the processes
+for (i in 1:mm) {
+  ylm <- c(-1, 1) * max(abs(proc_rot[i, ]))
+  ## set up plot area
+  plot(w_ts, proc_rot[i, ], type = "n", bty = "L", ylim = ylm, 
+       xlab = "", ylab = "", xaxt = "n")
+  ## draw zero-line
+  abline(h = 0, col = "gray")
+  ## plot trend line
+  lines(w_ts, proc_rot[i, ], lwd = 2)
+  lines(w_ts, proc_rot[i, ], lwd = 2)
+  ## add panel labels
+  mtext(paste("State", i), side = 3, line = 0.5)
+  axis(1, (0:dim(dat_salmon)[2]) + 1, yr_frst + 0:dim(dat_salmon)[2])
+}
+## plot the loadings
+
+clr_0 <- viridis::plasma(6, alpha=0.7, end=0.8)
+clr <- c(
+  rep(clr_0[1], 5),
+  rep(clr_0[2], 5),
+  rep(clr_0[3], 5),
+  rep(clr_0[4], 5),
+  rep(clr_0[5], 3),
+  rep(clr_0[6], 4))
+minZ <- 0
+ylm <- c(-1, 1) * max(abs(Z_rot))
+for (i in 1:mm) {
+  plot(c(1:N_ts)[abs(Z_rot[, i]) > minZ], as.vector(Z_rot[abs(Z_rot[, 
+                                                                    i]) > minZ, i]), type = "h", lwd = 2, xlab = "", ylab = "", 
+       xaxt = "n", ylim = ylm, xlim = c(0.5, N_ts + 0.5), col = clr)
+  for (j in 1:N_ts) {
+    if (Z_rot[j, i] > minZ) {
+      text(j, -0.03, ylbl[j], srt = 90, adj = 1, cex = 1.2, 
+           col = clr[j])
+    }
+    if (Z_rot[j, i] < -minZ) {
+      text(j, 0.03, ylbl[j], srt = 90, adj = 0, cex = 1.2, 
+           col = clr[j])
+    }
+    abline(h = 0, lwd = 1.5, col = "gray")
+  }
+  mtext(paste("Factor loadings on state", i), side = 3, line = 0.5)
+}
+
+#loadings looked reversed for some reason...
+#figure it out Monday
+
+
+plot(proc_rot[1,], type = "l", col = "blue")
+lines(proc_rot[2,], type = "l", col = "red")
+
