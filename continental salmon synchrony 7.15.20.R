@@ -1,10 +1,11 @@
-#loadings looked reversed for some reason...
-#figure it out Monday
-#next step: create an abundance and index for every year. keep it simple and just do a smoother on time. will need to be a hurdle model for fish
+#create an abundance and index for every year. keep it simple and just do a smoother on time. will need to be a hurdle model for fish
 #write one function for fish and one for temp
+#need to add in day of year to dataframes
 
 library(tidyverse)
 library(MARSS)
+library(INLA)
+library(lubridate)
 setwd("/Users/StuartMunsch/Google Drive/NE Salmon Synchrony/")
 
 
@@ -20,8 +21,9 @@ ak <- read.csv("data/jamals_data.csv")
 #for every dataset, create a tidy dataframe with
   #year, salmon species, abundance metric standardized by sampling intensity
 
-ps_1 <- ps %>% select(Year, all.CK.., all.coho.., Chum., Pink., Sockeye., flow)
-names(ps_1) <- c("year", "chinook_c", "coho_c", "chum_c", "pink_c", "sockeye_c", "flow")
+
+ps_1 <- ps %>% select(Year, Date, all.CK.., all.coho.., Chum., Pink., Sockeye., flow)
+names(ps_1) <- c("year", "date", "chinook_c", "coho_c", "chum_c", "pink_c", "sockeye_c", "flow")
 mean_flow <- mean(na.omit(ps_1$flow))
 ps_1$flow_2 <- ifelse(is.na(ps_1$flow) == TRUE, mean_flow, ps_1$flow)
 ps_1$chinook <- ps_1$chinook_c / ps_1$flow_2
@@ -29,9 +31,10 @@ ps_1$chum <- ps_1$chum_c / ps_1$flow_2
 ps_1$coho <- ps_1$coho_c / ps_1$flow_2
 ps_1$pink <- ps_1$pink_c / ps_1$flow_2
 ps_1$sockeye <- ps_1$sockeye_c / ps_1$flow_2
+ps_1$day_of_year <- yday(as.Date(ps_1$date, format = "%m/%d/%y"))
 sum(na.omit(ps_1$chinook > 0)) / length(na.omit(ps_1$chinook)); sum(na.omit(ps_1$chum > 0)) / length(na.omit(ps_1$chum)); sum(na.omit(ps_1$coho > 0)) / length(na.omit(ps_1$coho)); sum(na.omit(ps_1$pink > 0)) / length(na.omit(ps_1$pink)); sum(na.omit(ps_1$sockeye > 0)) / length(na.omit(ps_1$sockeye)) 
 #chinook, chum, pink >10% (threshold for pink = 5% because only present every other year)
-ps_1_long <- ps_1 %>% select("year", "chinook", "chum", "pink") %>% pivot_longer(names_to = "species", values_to = "count", cols = c("chinook", "chum", "pink"))
+ps_1_long <- ps_1 %>% select("year", "day_of_year", "chinook", "chum", "pink") %>% pivot_longer(names_to = "species", values_to = "count", cols = c("chinook", "chum", "pink"))
 ps_1_long$region <- "Puget Sound"
 
 #only going to use surface tows
@@ -72,9 +75,23 @@ all_long <- bind_rows(ps_1_long, vi_1_long, ow_1_long, ak_1_long)
 
 #function is a zero inflated GAM that generates abundance indexes for years
 
-zero_inflated_gam <- function(the_data, the_species, the_year_begin, the_year_end){
+#there are going to be years when there are no salmon, this screws up the yearly sequence just going by one
+
+zero_inflated_gam <- function(the_data, the_species, the_region, the_year_begin, the_year_end){
+  the_species_local <- the_species; the_region_local <- the_region
+  the_species_data <- the_data %>% dplyr::filter(species == the_species_local & region == the_region_local)
+  #create a vector of the years with fish present
+  the_years <- the_species_data %>% dplyr::select(year) %>% unique() %>% pull()
+  print(the_years)
+}  
+  
+zero_inflated_gam(the_data = all_long, the_species = "chinook", the_region = "Puget Sound")
+  
   presence_absence <- inla(count ~ -1 + f(day_of_year, model = "rw2") + as.factor(year), family = "binomial")
-  abundance_when_present <- inla(log(count) ~ -1  )
+  abundance_when_present <- inla(log(count) ~ -1 + f(day_of_year, model = "rw2") + as.factor(year))
+  indexes = tibble(year = seq(from = the_year_begin, to = the_year_end, by = 1), presence = inv.logit(presence_absence$summary.fixed[]))
+  abundance_when_present_indexes = tibble(year = seq(from = the_year_begin, to = the_year_end, by = 1), abundance_when_present = exp(abundance_when_present$summary.fixed[]))
+  index_tibble 
 }
 
 #indexes
