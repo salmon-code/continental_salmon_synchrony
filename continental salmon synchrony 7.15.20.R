@@ -32,8 +32,7 @@ ps_1$sockeye <- ps_1$sockeye_c / ps_1$flow_2
 sum(na.omit(ps_1$chinook > 0)) / length(na.omit(ps_1$chinook)); sum(na.omit(ps_1$chum > 0)) / length(na.omit(ps_1$chum)); sum(na.omit(ps_1$coho > 0)) / length(na.omit(ps_1$coho)); sum(na.omit(ps_1$pink > 0)) / length(na.omit(ps_1$pink)); sum(na.omit(ps_1$sockeye > 0)) / length(na.omit(ps_1$sockeye)) 
 #chinook, chum, pink >10% (threshold for pink = 5% because only present every other year)
 ps_1_long <- ps_1 %>% select("year", "chinook", "chum", "pink") %>% pivot_longer(names_to = "species", values_to = "count", cols = c("chinook", "chum", "pink"))
-ps_out <- ps_1_long %>% filter(count > -1) %>% group_by(year, species) %>% summarise(log_mean_count = mean(log(count + 1)))
-ps_out$region <- "Puget Sound"
+ps_1_long$region <- "Puget Sound"
 
 #only going to use surface tows
 vi_1 <- vi %>% filter(HEADROPE_DEPTH == 0) %>% select(TRIP_YEAR, CHINOOK, CHUM, COHO, PINK, SOCKEYE, SWEPT_VOLUME)
@@ -46,8 +45,7 @@ vi_1$sockeye <- vi_1$SOCKEYE / vi_1$SWEPT_VOLUME
 #all species regularly present
 sum(na.omit(vi_1$chinook > 0)) / length(na.omit(vi_1$chinook)); sum(na.omit(vi_1$chum > 0)) / length(na.omit(vi_1$chum)); sum(na.omit(vi_1$coho > 0)) / length(na.omit(vi_1$coho)); sum(na.omit(vi_1$pink > 0)) / length(na.omit(vi_1$pink)); sum(na.omit(vi_1$sockeye > 0)) / length(na.omit(vi_1$sockeye)) 
 vi_1_long <- vi_1 %>% select("year", "chinook", "coho", "chum", "pink", "sockeye") %>% pivot_longer(names_to = "species", values_to = "count", cols = c("chinook", "coho", "chum", "pink", "sockeye"))
-vi_out <- vi_1_long %>% filter(count > -1) %>% group_by(year, species) %>% summarise(log_mean_count = mean(log(count + 1)))
-vi_out$region <- "Vancouver Island"
+vi_1_long$region <- "Vancouver Island"
 
 ow$chinook <- ow$Chinook.mixed.age.juvenile.CPUE....km.trawled. + ow$Chinook.subyearling.CPUE....km.trawled. + ow$Chinook.yearling.CPUE....km.trawled.
 ow_1 <- ow %>% select(Year, chinook, Chum.juvenile.CPUE....km.trawled., Coho.yearling.CPUE....km.trawled., Sockeye.juvenile.CPUE....km.trawled. )
@@ -55,8 +53,7 @@ names(ow_1) <- c("year", "chinook", "chum", "coho", "sockeye")
 #all species regularly present
 sum(na.omit(ow_1$chinook > 0)) / length(na.omit(ow_1$chinook)); sum(na.omit(ow_1$chum > 0)) / length(na.omit(ow_1$chum)); sum(na.omit(ow_1$coho > 0)) / length(na.omit(ow_1$coho)); sum(na.omit(ow_1$pink > 0)) / length(na.omit(ow_1$pink)); sum(na.omit(ow_1$sockeye > 0)) / length(na.omit(ow_1$sockeye)) 
 ow_1_long <- ow_1 %>% select("year", "chinook", "coho", "chum",  "sockeye") %>% pivot_longer(names_to = "species", values_to = "count", cols = c("chinook", "coho", "chum", "sockeye"))
-ow_out <- ow_1_long %>% filter(count > -1) %>% group_by(year, species) %>% summarise(log_mean_count = mean(log(count + 1)))
-ow_out$region <- "Oregon & Washington"
+ow_1_long$region <- "Oregon & Washington"
 
 #not inclduing west gulf of alaska because there are only a few years of data
 ak$chinook <- (ak$Chinook.Salmon.IM + ak$Chinook.Salmon.J) / ak$Effort_area_km2
@@ -69,14 +66,53 @@ ak$region <- ak$Region
 ak_1 <- ak %>% select(year, chinook, coho, chum, pink, sockeye, region)
 ak_1_long <- ak_1 %>% select("year", "region", "chinook", "coho", "chum", "pink", "sockeye") %>% pivot_longer(names_to = "species", values_to = "count", cols = c("chinook", "coho", "chum", "pink", "sockeye"))
 #all species regularly present
-ak_1_long %>% group_by(region, species) %>% summarise(sum(na.omit(count) > 0) / length(na.omit(count)))
-ak_out <- ak_1_long %>% filter(count > -1 & region != "West Gulf of Alaska") %>% group_by(year, species, region) %>% summarise(log_mean_count = mean(log(count + 1)))
-all_out_1 <- bind_rows(ps_out, vi_out, ow_out, ak_out)
-#get rid of odd year pinks from ps and vi because MARSS cannot handle their error terms
-all_out_1[all_out_1$species == "pink" &
-  (all_out_1$region == "Puget Sound" | all_out_1$region == "Vancouver Island") &
-    all_out_1$year %% 2 != 0,]$log_mean_count <- NA
-all_out <- all_out_1 %>% group_by(region, species) %>% mutate(log_mean_count_z = (log_mean_count - mean(na.omit(log_mean_count))) / sd(na.omit(log_mean_count)))
+
+all_long <- bind_rows(ps_1_long, vi_1_long, ow_1_long, ak_1_long)
+
+
+#function is a zero inflated GAM that generates abundance indexes for years
+
+zero_inflated_gam <- function(the_data, the_species, the_year_begin, the_year_end){
+  presence_absence <- inla(count ~ -1 + f(day_of_year, model = "rw2") + as.factor(year), family = "binomial")
+  abundance_when_present <- inla(log(count) ~ -1  )
+}
+
+#indexes
+
+U <- 1 #explained in rw1 portion of zuur's first of two books
+hyper.prec <- list("theta" = list(
+  prior = "pc.prec", 
+  param = c(U, 0.1)))
+sac125_smooth <- inla(presence ~  
+                        m_cpue_SAC_LN.s +
+                        f(round(sac_mavg_flow.s, 1), model = "rw2", hyper = hyper.prec) + 
+                        f(station,model = "iid") + 
+                        f(day.of.water.year, model = "rw2", hyper = hyper.prec) + 
+                        f(watertempR, model = "rw2", hyper = hyper.prec) + 
+                        f(wateryear, model = "iid"), 
+                      family="binomial",
+                      control.predictor = list(link = 1, compute = TRUE, quantiles = c(0.025, 0.975)),
+                      data = sac_for_flow_predictions)
+plot(sac125_smooth$summary.random$`round(sac_mavg_flow.s, 1)`$mean)
+
+
+#Zuur page 309. creating a truncated negative binomial distribution
+trunc_nb <- list(hyper = list(theta = list(initial = -10, fixed = TRUE)))
+
+sac125_smooth_catch <- inla(catch ~  
+                              m_cpue_SAC_LN.s +
+                              f(round(sac_mavg_flow.s, 1), model = "rw2", hyper = hyper.prec) + 
+                              f(station,model = "iid") + 
+                              f(day.of.water.year, model = "rw2", hyper = hyper.prec) + 
+                              f(watertempR, model = "rw2", hyper = hyper.prec) + 
+                              f(wateryear, model = "iid"), 
+                            family="zeroinflatednbinomial0",
+                            control.predictor = list(link = 1, compute = TRUE, quantiles = c(0.025, 0.975)), 
+                            control.family = trunc_nb,
+                            data = sac_for_flow_predictions_catch)
+
+
+
 
 ggplot(aes(x = year, y = log_mean_count_z, col = species), data = all_out) +
   geom_line() + 
