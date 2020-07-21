@@ -1,5 +1,7 @@
-#if they all have the same variance (bc z score, then do you need to estimate unique Rs?)
-#actually you might. think the issue is that you need to group the obs by region
+#loadings looked reversed for some reason...
+#figure it out Monday
+#next step: create an abundance and index for every year. keep it simple and just do a smoother on time. will need to be a hurdle model for fish
+#write one function for fish and one for temp
 
 library(tidyverse)
 library(MARSS)
@@ -63,6 +65,7 @@ ak$chum <- (ak$Chum.Salmon.IM + ak$Chum.Salmon.J) / ak$Effort_area_km2
 ak$pink <- (ak$Pink.Salmon.IM + ak$Pink.Salmon.J) / ak$Effort_area_km2
 ak$sockeye <- (ak$Sockeye.Salmon.IM + ak$Sockeye.Salmon.J) / ak$Effort_area_km2
 ak$year <- ak$SampleYear
+ak$region <- ak$Region
 ak_1 <- ak %>% select(year, chinook, coho, chum, pink, sockeye, region)
 ak_1_long <- ak_1 %>% select("year", "region", "chinook", "coho", "chum", "pink", "sockeye") %>% pivot_longer(names_to = "species", values_to = "count", cols = c("chinook", "coho", "chum", "pink", "sockeye"))
 #all species regularly present
@@ -75,7 +78,6 @@ all_out_1[all_out_1$species == "pink" &
     all_out_1$year %% 2 != 0,]$log_mean_count <- NA
 all_out <- all_out_1 %>% group_by(region, species) %>% mutate(log_mean_count_z = (log_mean_count - mean(na.omit(log_mean_count))) / sd(na.omit(log_mean_count)))
 
-
 ggplot(aes(x = year, y = log_mean_count_z, col = species), data = all_out) +
   geom_line() + 
   geom_point() +
@@ -84,16 +86,17 @@ ggplot(aes(x = year, y = log_mean_count_z, col = species), data = all_out) +
   geom_vline(aes(xintercept = 2015))
 ggsave("salmon synchrony raw.jpeg", width = 10, height = 4)
 
-all_out2 <- all_out
-all_out2$species_region <- paste(all_out2$species, all_out2$region, sep = "_")
+ow_temp <- ow %>% group_by(Year) %>% summarise(mean_temp = mean(na.omit(X5m_Temperature_oC))) %>% mutate(mean_temp_z = (mean_temp - mean(mean_temp)) / sd(mean_temp))
+names(ow_temp) <- c("year", "mean_temp", "mean_temp_z")
+ow_temp$region <- "Oregon & Washington"
 
-ggplot(aes(x = year, y = log_mean_count_z), data = all_out2) +
-  #geom_line() + 
-  #geom_point() +
-  geom_vline(aes(xintercept = 2014)) +
-  geom_vline(aes(xintercept = 2015)) +
-  geom_smooth(fill = NA, aes(group = species_region, col = region)) +
-  coord_cartesian(ylim = c(-2, 2.2))
+vi_temp <- vi %>% group_by(TRIP_YEAR) %>% summarise(mean_temp = mean(na.omit(Temp5m))) %>% mutate(mean_temp_z = (mean_temp - mean(mean_temp)) / sd(mean_temp))
+names(vi_temp) <- c("year", "mean_temp", "mean_temp_z")
+vi_temp$region <- "Vancouver Island"
+
+ak_temp <- ak %>% group_by(region, year) %>% summarise(mean_temp = mean(na.omit(Temp_at_5m))) %>% mutate(mean_temp_z = (mean_temp - mean(mean_temp)) / sd(mean_temp))
+
+
 
 #fit DFA to salmon data =======================================================
 #fit DFA to salmon data =======================================================
@@ -367,9 +370,6 @@ for (i in 1:mm) {
   }
   mtext(paste("Factor loadings on state", i), side = 3, line = 0.5)
 }
-
-#loadings looked reversed for some reason...
-#figure it out Monday
 
 
 plot(proc_rot[1,], type = "l", col = "blue")
